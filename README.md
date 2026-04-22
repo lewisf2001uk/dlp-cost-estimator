@@ -2,19 +2,22 @@
 
 Installable static PWA for estimating Disneyland Paris item costs in GBP after:
 
-- Gold Pass discount
+- Item discount
+- Annual Pass discount
 - VAT refund via SkipTax
 - Latest EUR to GBP exchange rate
 
 ## Features
 
 - Euro shelf-price input
-- Gold Pass checkbox, preselected by default
+- Annual Pass checkbox, preselected by default
+- Item discount percentage input
 - Settings for:
-  - Gold Pass discount
+  - Annual Pass discount
   - French VAT rate
   - SkipTax refund share
-  - Whether Gold Pass starts selected
+  - Whether Annual Pass starts selected
+  - Whether SkipTax starts selected
 - Live EUR to GBP rate from Frankfurter's ECB-backed API
 - Local rate caching for low-signal park use
 - Installable PWA metadata and service worker
@@ -27,7 +30,8 @@ The Euro price entered is treated as the VAT-inclusive shelf price.
 Formula:
 
 ```text
-discounted = price * (1 - passDiscount)
+afterItemDiscount = price * (1 - itemDiscountPct)
+discounted = afterItemDiscount * (1 - annualPassDiscount)
 vatPart = discounted * (vatRate / (100 + vatRate))
 vatRefund = vatPart * vatRefundShare
 finalEur = discounted - vatRefund

@@ -9,7 +9,7 @@
     <title>DLP Cost Estimator</title>
     <meta
       name="description"
-      content="Estimate Disneyland Paris item costs in GBP after optional Gold Pass discount, optional SkipTax refund, and the latest saved EUR to GBP exchange rate."
+      content="Estimate Disneyland Paris item costs in GBP after optional item discount, optional Annual Pass discount, optional SkipTax refund, and the latest saved EUR to GBP exchange rate."
     />
     <meta name="theme-color" content="#3d0f65" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -30,45 +30,20 @@
           <h1>DLP Cost Estimator</h1>
           <p class="hero-text">
             Get a quick park-side GBP estimate from the shelf price, with optional
-            Gold Pass and SkipTax adjustments.
+            item discount, Annual Pass, and SkipTax adjustments.
           </p>
         </div>
         <aside class="hero-side">
-          <div class="hero-card">
-            <span class="label">Park-ready</span>
-            <strong>Cleaner calculator, saved rate in the background</strong>
-            <p>
-              The latest EUR to GBP rate is cached locally for offline use and
-              managed from Settings when you need it.
-            </p>
-          </div>
-          <div class="status-stack">
-            <span class="status-pill">Gold Pass + SkipTax</span>
-            <span class="status-pill secondary">Offline rate cache</span>
-          </div>
+          <nav class="view-switch hero-switch" aria-label="App sections">
+            <button class="view-tab is-active" data-view-target="calculator" type="button">
+              Calculator
+            </button>
+            <button class="view-tab" data-view-target="settings" type="button">
+              Settings
+            </button>
+          </nav>
         </aside>
       </header>
-
-      <section class="install-banner panel hidden" id="install-banner" aria-live="polite">
-        <div>
-          <h2 id="install-title">Install on your phone</h2>
-          <p id="install-copy">
-            Install the app for quick access in the parks.
-          </p>
-        </div>
-        <button class="ghost-button hidden" id="install-button" type="button">
-          Install app
-        </button>
-      </section>
-
-      <nav class="view-switch" aria-label="App sections">
-        <button class="view-tab is-active" data-view-target="calculator" type="button">
-          Calculator
-        </button>
-        <button class="view-tab" data-view-target="settings" type="button">
-          Settings
-        </button>
-      </nav>
 
       <main class="views">
         <section class="view is-active" data-view="calculator">
@@ -90,29 +65,6 @@
                   Enter the price as shown in the shop. The app treats it as VAT-inclusive.
                 </span>
               </label>
-
-              <div class="toggle-stack">
-                <label class="toggle-card" for="apply-pass">
-                  <input id="apply-pass" type="checkbox" checked />
-                  <span class="toggle-copy">
-                    <strong>Apply Gold Pass discount</strong>
-                    <small>
-                      Preselected for pass-holder pricing, but you can untick it for full price.
-                    </small>
-                  </span>
-                </label>
-
-                <label class="toggle-card" for="apply-skiptax">
-                  <input id="apply-skiptax" type="checkbox" checked />
-                  <span class="toggle-copy">
-                    <strong>Apply SkipTax refund</strong>
-                    <small>
-                      Ticked by default for refund-eligible purchases. Untick it for the
-                      no-refund total.
-                    </small>
-                  </span>
-                </label>
-              </div>
             </div>
 
             <div class="result-hero">
@@ -128,13 +80,51 @@
                 <strong id="final-eur">€0.00</strong>
               </div>
             </div>
+
+            <label class="field calculator-adjustment-field">
+              <span class="field-label">Item discount %</span>
+              <input
+                id="item-discount-pct"
+                type="number"
+                min="0"
+                max="100"
+                step="0.1"
+                inputmode="decimal"
+                placeholder="0"
+              />
+              <span class="field-help">
+                Apply any item-specific discount before the Annual Pass discount.
+              </span>
+            </label>
+
+            <div class="toggle-stack calculator-toggle-stack">
+              <label class="toggle-card" for="apply-pass">
+                <input id="apply-pass" type="checkbox" checked />
+                <span class="toggle-copy">
+                  <strong>Apply Annual Pass discount</strong>
+                  <small>
+                    Preselected for pass-holder pricing, but you can untick it for full price.
+                  </small>
+                </span>
+              </label>
+
+              <label class="toggle-card" for="apply-skiptax">
+                <input id="apply-skiptax" type="checkbox" checked />
+                <span class="toggle-copy">
+                  <strong>Apply SkipTax refund</strong>
+                  <small>
+                    Ticked by default for refund-eligible purchases. Untick it for the
+                    no-refund total.
+                  </small>
+                </span>
+              </label>
+            </div>
           </div>
 
           <div class="detail-grid detail-grid-single">
             <section class="panel">
               <div class="panel-header">
                 <h2>Breakdown</h2>
-                <span class="micro-tag">Live updates</span>
               </div>
               <dl class="breakdown-list">
                 <div>
@@ -142,11 +132,15 @@
                   <dd id="line-base">€0.00</dd>
                 </div>
                 <div>
-                  <dt>Gold Pass savings</dt>
-                  <dd id="line-discount">€0.00</dd>
+                  <dt>Item discount savings</dt>
+                  <dd id="line-item-discount">€0.00</dd>
                 </div>
                 <div>
-                  <dt>After pass discount</dt>
+                  <dt>Annual Pass savings</dt>
+                  <dd id="line-pass-discount">€0.00</dd>
+                </div>
+                <div>
+                  <dt>After discounts</dt>
                   <dd id="line-discounted">€0.00</dd>
                 </div>
                 <div>
@@ -160,6 +154,10 @@
                 <div class="total-row">
                   <dt>Estimated final EUR cost</dt>
                   <dd id="line-final-eur">€0.00</dd>
+                </div>
+                <div class="total-row">
+                  <dt>Estimated final GBP cost</dt>
+                  <dd id="line-final-gbp">£0.00</dd>
                 </div>
               </dl>
             </section>
@@ -176,7 +174,7 @@
 
               <div class="settings-fields">
                 <label class="field">
-                  <span class="field-label">Gold Pass discount %</span>
+                  <span class="field-label">Annual Pass discount %</span>
                   <input
                     id="setting-pass-discount"
                     type="number"
@@ -211,7 +209,17 @@
                 <label class="toggle-card compact" for="setting-default-pass">
                   <input id="setting-default-pass" type="checkbox" />
                   <span class="toggle-copy">
-                    <strong>Start with Gold Pass selected</strong>
+                    <strong>Start with Annual Pass selected</strong>
+                    <small>
+                      Used when the app opens. Changing this will not alter the current quote.
+                    </small>
+                  </span>
+                </label>
+
+                <label class="toggle-card compact" for="setting-default-skiptax">
+                  <input id="setting-default-skiptax" type="checkbox" />
+                  <span class="toggle-copy">
+                    <strong>Start with SkipTax selected</strong>
                     <small>
                       Used when the app opens. Changing this will not alter the current quote.
                     </small>
@@ -231,6 +239,21 @@
                 <h2>Saved exchange rate</h2>
                 <span class="status-pill" id="rate-status-pill">Loading rate</span>
               </div>
+              <label class="field">
+                <span class="field-label">Saved EUR to GBP rate</span>
+                <input
+                  id="setting-manual-rate"
+                  type="number"
+                  min="0"
+                  step="0.00001"
+                  inputmode="decimal"
+                  placeholder="0.85000"
+                />
+                <span class="field-help">
+                  Type a historical rate manually and it will save locally. Refresh below
+                  to replace it with the latest ECB-backed rate.
+                </span>
+              </label>
               <div class="rate-panel">
                 <p class="rate-number" id="rate-display">1 EUR = -- GBP</p>
                 <p class="rate-description" id="rate-description">
@@ -248,13 +271,26 @@
               </div>
             </section>
 
+            <section class="panel install-panel hidden" id="install-banner" aria-live="polite">
+              <div>
+                <h2 id="install-title">Install this estimator</h2>
+                <p id="install-copy">
+                  Install the app for quick access in the parks.
+                </p>
+              </div>
+              <button class="ghost-button hidden" id="install-button" type="button">
+                Install app
+              </button>
+            </section>
+
             <section class="panel muted-panel">
               <div class="panel-header">
                 <h2>How the estimate works</h2>
               </div>
               <ol class="explain-list">
-                <li>If enabled, the Gold Pass discount is removed from the shelf price first.</li>
-                <li>The app then extracts the VAT portion from that discounted VAT-inclusive price.</li>
+                <li>If entered, an item discount is removed from the shelf price first.</li>
+                <li>If enabled, the Annual Pass discount is then applied on top.</li>
+                <li>The app extracts the VAT portion from that discounted VAT-inclusive price.</li>
                 <li>If enabled, it applies the configured SkipTax refund share to that VAT amount.</li>
                 <li>The remaining Euro total is converted to GBP with the latest saved exchange rate.</li>
               </ol>

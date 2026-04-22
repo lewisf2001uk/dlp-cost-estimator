@@ -1,4 +1,4 @@
-const CACHE_NAME = "dlp-cost-estimator-v3";
+const CACHE_NAME = "dlp-cost-estimator-v4";
 const APP_ASSETS = [
   "./",
   "./index.html",
