@@ -1,4 +1,4 @@
-const CACHE_NAME = "dlp-cost-estimator-v1";
+const CACHE_NAME = "dlp-cost-estimator-v3";
 const APP_ASSETS = [
   "./",
   "./index.html",
@@ -11,6 +11,9 @@ const APP_ASSETS = [
   "./icons/icon-maskable-512.png",
   "./icons/apple-touch-icon.png",
 ];
+const APP_ASSET_PATHS = new Set(
+  APP_ASSETS.map((asset) => new URL(asset, self.location.href).pathname),
+);
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -48,6 +51,23 @@ self.addEventListener("fetch", (event) => {
   if (request.mode === "navigate") {
     event.respondWith(
       fetch(request).catch(() => caches.match("./index.html")),
+    );
+    return;
+  }
+
+  if (APP_ASSET_PATHS.has(url.pathname)) {
+    event.respondWith(
+      fetch(request)
+        .then((networkResponse) => {
+          if (!networkResponse || networkResponse.status !== 200) {
+            return networkResponse;
+          }
+
+          const clonedResponse = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, clonedResponse));
+          return networkResponse;
+        })
+        .catch(() => caches.match(request)),
     );
     return;
   }

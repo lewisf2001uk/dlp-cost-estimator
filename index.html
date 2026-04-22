@@ -9,9 +9,9 @@
     <title>DLP Cost Estimator</title>
     <meta
       name="description"
-      content="Estimate Disneyland Paris item costs in GBP after Gold Pass discount, VAT refund, and the latest EUR to GBP rate."
+      content="Estimate Disneyland Paris item costs in GBP after optional Gold Pass discount, optional SkipTax refund, and the latest saved EUR to GBP exchange rate."
     />
-    <meta name="theme-color" content="#12314d" />
+    <meta name="theme-color" content="#3d0f65" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="DLP Cost" />
@@ -29,19 +29,22 @@
           <p class="eyebrow">Disneyland Paris</p>
           <h1>DLP Cost Estimator</h1>
           <p class="hero-text">
-            Enter a Euro shelf price and get a quick GBP estimate after your
-            Gold Pass discount, VAT refund, and the latest ECB-backed exchange rate.
+            Get a quick park-side GBP estimate from the shelf price, with optional
+            Gold Pass and SkipTax adjustments.
           </p>
         </div>
         <aside class="hero-side">
-          <div class="rate-callout">
-            <span class="label">Latest EUR to GBP</span>
-            <strong id="hero-rate">--</strong>
-            <span class="meta" id="hero-rate-meta">Checking rate...</span>
+          <div class="hero-card">
+            <span class="label">Park-ready</span>
+            <strong>Cleaner calculator, saved rate in the background</strong>
+            <p>
+              The latest EUR to GBP rate is cached locally for offline use and
+              managed from Settings when you need it.
+            </p>
           </div>
           <div class="status-stack">
-            <span class="status-pill" id="rate-status-pill">Loading rate</span>
-            <span class="status-pill secondary" id="vat-mode-pill">VAT-inclusive mode</span>
+            <span class="status-pill">Gold Pass + SkipTax</span>
+            <span class="status-pill secondary">Offline rate cache</span>
           </div>
         </aside>
       </header>
@@ -88,15 +91,28 @@
                 </span>
               </label>
 
-              <label class="toggle-card" for="apply-pass">
-                <input id="apply-pass" type="checkbox" checked />
-                <span class="toggle-copy">
-                  <strong>Apply Gold Pass discount</strong>
-                  <small>
-                    Preselected for pass-holder pricing, but you can untick it for full price.
-                  </small>
-                </span>
-              </label>
+              <div class="toggle-stack">
+                <label class="toggle-card" for="apply-pass">
+                  <input id="apply-pass" type="checkbox" checked />
+                  <span class="toggle-copy">
+                    <strong>Apply Gold Pass discount</strong>
+                    <small>
+                      Preselected for pass-holder pricing, but you can untick it for full price.
+                    </small>
+                  </span>
+                </label>
+
+                <label class="toggle-card" for="apply-skiptax">
+                  <input id="apply-skiptax" type="checkbox" checked />
+                  <span class="toggle-copy">
+                    <strong>Apply SkipTax refund</strong>
+                    <small>
+                      Ticked by default for refund-eligible purchases. Untick it for the
+                      no-refund total.
+                    </small>
+                  </span>
+                </label>
+              </div>
             </div>
 
             <div class="result-hero">
@@ -114,7 +130,7 @@
             </div>
           </div>
 
-          <div class="detail-grid">
+          <div class="detail-grid detail-grid-single">
             <section class="panel">
               <div class="panel-header">
                 <h2>Breakdown</h2>
@@ -127,7 +143,7 @@
                 </div>
                 <div>
                   <dt>Gold Pass savings</dt>
-                  <dd id="line-discount">-€0.00</dd>
+                  <dd id="line-discount">€0.00</dd>
                 </div>
                 <div>
                   <dt>After pass discount</dt>
@@ -139,31 +155,13 @@
                 </div>
                 <div>
                   <dt>Estimated SkipTax refund</dt>
-                  <dd id="line-refund">-€0.00</dd>
+                  <dd id="line-refund">€0.00</dd>
                 </div>
                 <div class="total-row">
                   <dt>Estimated final EUR cost</dt>
                   <dd id="line-final-eur">€0.00</dd>
                 </div>
               </dl>
-            </section>
-
-            <section class="panel">
-              <div class="panel-header">
-                <h2>Exchange rate</h2>
-                <button class="ghost-button" id="refresh-rate" type="button">
-                  Refresh rate
-                </button>
-              </div>
-              <div class="rate-panel">
-                <p class="rate-number" id="rate-display">1 EUR = -- GBP</p>
-                <p class="rate-description" id="rate-description">
-                  Fetching the latest ECB-backed EUR to GBP rate...
-                </p>
-                <p class="rate-note" id="rate-note">
-                  A saved rate will be used if you lose signal in the parks.
-                </p>
-              </div>
             </section>
           </div>
         </section>
@@ -215,7 +213,7 @@
                   <span class="toggle-copy">
                     <strong>Start with Gold Pass selected</strong>
                     <small>
-                      Useful if most of your checks are for pass-holder purchases.
+                      Used when the app opens. Changing this will not alter the current quote.
                     </small>
                   </span>
                 </label>
@@ -228,6 +226,28 @@
               </div>
             </section>
 
+            <section class="panel rate-settings-panel">
+              <div class="panel-header">
+                <h2>Saved exchange rate</h2>
+                <span class="status-pill" id="rate-status-pill">Loading rate</span>
+              </div>
+              <div class="rate-panel">
+                <p class="rate-number" id="rate-display">1 EUR = -- GBP</p>
+                <p class="rate-description" id="rate-description">
+                  Fetching the latest ECB-backed EUR to GBP rate...
+                </p>
+                <p class="rate-note" id="rate-note">
+                  The latest successful rate is cached locally so GBP estimates keep
+                  working when signal drops in the parks.
+                </p>
+              </div>
+              <div class="settings-actions">
+                <button class="ghost-button" id="refresh-rate" type="button">
+                  Refresh saved rate
+                </button>
+              </div>
+            </section>
+
             <section class="panel muted-panel">
               <div class="panel-header">
                 <h2>How the estimate works</h2>
@@ -235,8 +255,8 @@
               <ol class="explain-list">
                 <li>If enabled, the Gold Pass discount is removed from the shelf price first.</li>
                 <li>The app then extracts the VAT portion from that discounted VAT-inclusive price.</li>
-                <li>It applies the configured SkipTax refund share to that VAT amount.</li>
-                <li>The remaining Euro total is converted to GBP with the latest saved rate.</li>
+                <li>If enabled, it applies the configured SkipTax refund share to that VAT amount.</li>
+                <li>The remaining Euro total is converted to GBP with the latest saved exchange rate.</li>
               </ol>
               <p class="explain-note">
                 This is meant as a quick park-side estimate rather than a bank-perfect conversion.

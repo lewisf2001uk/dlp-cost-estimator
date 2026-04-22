@@ -12,6 +12,7 @@ const state = {
   ui: {
     itemPrice: "",
     applyPassDiscount: false,
+    applySkipTax: true,
     view: "calculator",
   },
   rate: loadCachedRate(),
@@ -54,6 +55,7 @@ const dateFormatter = new Intl.DateTimeFormat("en-GB", {
 const elements = {
   priceInput: document.querySelector("#item-price"),
   applyPassInput: document.querySelector("#apply-pass"),
+  applySkipTaxInput: document.querySelector("#apply-skiptax"),
   finalGbp: document.querySelector("#final-gbp"),
   finalEur: document.querySelector("#final-eur"),
   resultSubtext: document.querySelector("#result-subtext"),
@@ -67,8 +69,6 @@ const elements = {
   rateDescription: document.querySelector("#rate-description"),
   rateNote: document.querySelector("#rate-note"),
   rateStatusPill: document.querySelector("#rate-status-pill"),
-  heroRate: document.querySelector("#hero-rate"),
-  heroRateMeta: document.querySelector("#hero-rate-meta"),
   refreshRateButton: document.querySelector("#refresh-rate"),
   passDiscountInput: document.querySelector("#setting-pass-discount"),
   vatRateInput: document.querySelector("#setting-vat-rate"),
@@ -100,6 +100,11 @@ function bindEvents() {
     renderCalculation();
   });
 
+  elements.applySkipTaxInput.addEventListener("change", (event) => {
+    state.ui.applySkipTax = event.target.checked;
+    renderCalculation();
+  });
+
   elements.refreshRateButton.addEventListener("click", () => {
     fetchLatestRate({ silent: false });
   });
@@ -126,17 +131,12 @@ function bindEvents() {
   elements.defaultPassInput.addEventListener("change", () => {
     state.settings.defaultPassSelected = elements.defaultPassInput.checked;
     persistSettings();
-    state.ui.applyPassDiscount = elements.defaultPassInput.checked;
-    elements.applyPassInput.checked = state.ui.applyPassDiscount;
-    renderCalculation();
   });
 
   elements.resetSettingsButton.addEventListener("click", () => {
     state.settings = { ...DEFAULT_SETTINGS };
     persistSettings();
     syncSettingsInputs();
-    state.ui.applyPassDiscount = state.settings.defaultPassSelected;
-    elements.applyPassInput.checked = state.ui.applyPassDiscount;
     render();
   });
 
@@ -170,6 +170,7 @@ function bindEvents() {
 function hydrateControls() {
   elements.priceInput.value = state.ui.itemPrice;
   elements.applyPassInput.checked = state.ui.applyPassDiscount;
+  elements.applySkipTaxInput.checked = state.ui.applySkipTax;
   syncSettingsInputs();
 }
 
@@ -216,14 +217,17 @@ function renderCalculation() {
     amount,
     settings: state.settings,
     applyPassDiscount: state.ui.applyPassDiscount,
+    applyVatRefund: state.ui.applySkipTax,
     rate: state.rate?.rate ?? null,
   });
 
   elements.lineBase.textContent = formatEur(calculation.baseAmount);
-  elements.lineDiscount.textContent = `-${formatEur(calculation.discountAmount)}`;
+  elements.lineDiscount.textContent =
+    calculation.discountAmount > 0 ? `-${formatEur(calculation.discountAmount)}` : formatEur(0);
   elements.lineDiscounted.textContent = formatEur(calculation.discountedAmount);
   elements.lineVat.textContent = formatEur(calculation.vatAmount);
-  elements.lineRefund.textContent = `-${formatEur(calculation.vatRefundAmount)}`;
+  elements.lineRefund.textContent =
+    calculation.vatRefundAmount > 0 ? `-${formatEur(calculation.vatRefundAmount)}` : formatEur(0);
   elements.lineFinalEur.textContent = formatEur(calculation.finalEur);
   elements.finalEur.textContent = formatEur(calculation.finalEur);
 
@@ -235,30 +239,29 @@ function renderCalculation() {
 
   if (!Number.isFinite(amount) || amount <= 0) {
     elements.resultSubtext.textContent =
-      "Enter a shelf price in Euros to see the pass, VAT, refund, and GBP estimate.";
+      "Enter a shelf price in Euros to see the Gold Pass, SkipTax, and GBP estimate.";
     return;
   }
 
-  const rateDateText = state.rate?.date ? dateFormatter.format(new Date(state.rate.date)) : "latest saved rate";
   const passText = state.ui.applyPassDiscount
-    ? `Gold Pass discount applied at ${formatPct(state.settings.passDiscountPct)}.`
-    : "Gold Pass discount not applied.";
+    ? `Gold Pass applied at ${formatPct(state.settings.passDiscountPct)}.`
+    : "Gold Pass not applied.";
+  const skipTaxText = state.ui.applySkipTax
+    ? `SkipTax included at ${formatPct(state.settings.vatRefundSharePct)}.`
+    : "SkipTax not applied.";
+  const rateText = state.rate?.date
+    ? `GBP uses the saved rate from ${formatApiDate(state.rate.date)}.`
+    : "Save an exchange rate in Settings to enable GBP conversions.";
 
-  elements.resultSubtext.textContent = `${passText} GBP uses the rate saved for ${rateDateText}.`;
+  elements.resultSubtext.textContent = `${passText} ${skipTaxText} ${rateText}`;
 }
 
 function renderRate() {
   if (state.rate?.rate) {
     const rateValue = Number(state.rate.rate);
     elements.rateDisplay.textContent = `1 EUR = ${rateValue.toFixed(5)} GBP`;
-    elements.heroRate.textContent = rateValue.toFixed(5);
-    elements.heroRateMeta.textContent = state.rate.date
-      ? `Effective ${dateFormatter.format(new Date(state.rate.date))}`
-      : "Saved rate";
   } else {
     elements.rateDisplay.textContent = "1 EUR = -- GBP";
-    elements.heroRate.textContent = "--";
-    elements.heroRateMeta.textContent = "No saved rate yet";
   }
 
   const status = state.rateStatus.kind;
@@ -266,7 +269,7 @@ function renderRate() {
 
   if (status === "loading") {
     elements.rateDescription.textContent = "Fetching the latest EUR to GBP rate...";
-    elements.rateNote.textContent = "If the fetch fails, the app will fall back to the last saved rate.";
+    elements.rateNote.textContent = "If the refresh fails, the app will keep using the last saved rate.";
     return;
   }
 
@@ -274,17 +277,19 @@ function renderRate() {
     const savedAt = state.rate.fetchedAt
       ? timeFormatter.format(new Date(state.rate.fetchedAt))
       : "just now";
-    elements.rateDescription.textContent = `Latest ECB-backed rate loaded successfully for ${dateFormatter.format(
-      new Date(state.rate.date),
-    )}.`;
+    elements.rateDescription.textContent = state.rate.date
+      ? `Latest ECB-backed rate saved successfully for ${formatApiDate(state.rate.date)}.`
+      : "Latest ECB-backed rate saved successfully.";
     elements.rateNote.textContent = `Saved locally at ${savedAt} for offline use in the parks.`;
     return;
   }
 
   if (status === "cached" && state.rate) {
-    elements.rateDescription.textContent = "Live refresh failed, so the app is using the last saved rate.";
+    elements.rateDescription.textContent = state.rate.date
+      ? `Live refresh failed, so the app is using the saved rate from ${formatApiDate(state.rate.date)}.`
+      : "Live refresh failed, so the app is using the last saved rate.";
     elements.rateNote.textContent = state.rate.fetchedAt
-      ? `Saved locally on ${timeFormatter.format(new Date(state.rate.fetchedAt))}.`
+      ? `That saved rate was stored locally on ${timeFormatter.format(new Date(state.rate.fetchedAt))}.`
       : "Saved locally for offline use.";
     return;
   }
@@ -362,7 +367,7 @@ async function fetchLatestRate({ silent }) {
   renderCalculation();
 }
 
-function calculateEstimate({ amount, settings, applyPassDiscount, rate }) {
+function calculateEstimate({ amount, settings, applyPassDiscount, applyVatRefund, rate }) {
   if (!Number.isFinite(amount) || amount <= 0) {
     return {
       baseAmount: 0,
@@ -379,7 +384,7 @@ function calculateEstimate({ amount, settings, applyPassDiscount, rate }) {
   const discountedAmount = amount * (1 - discountRate);
   const discountAmount = amount - discountedAmount;
   const vatAmount = discountedAmount * (settings.vatRatePct / (100 + settings.vatRatePct));
-  const vatRefundAmount = vatAmount * (settings.vatRefundSharePct / 100);
+  const vatRefundAmount = applyVatRefund ? vatAmount * (settings.vatRefundSharePct / 100) : 0;
   const finalEur = discountedAmount - vatRefundAmount;
   const finalGbp = Number.isFinite(rate) ? finalEur * rate : null;
 
@@ -399,7 +404,26 @@ function parseAmount(value) {
     return Number.NaN;
   }
 
-  const normalized = value.replace(/,/g, ".").replace(/[^\d.]/g, "");
+  const cleaned = value.trim().replace(/[^\d.,]/g, "");
+
+  if (!cleaned) {
+    return Number.NaN;
+  }
+
+  const lastComma = cleaned.lastIndexOf(",");
+  const lastDot = cleaned.lastIndexOf(".");
+  let normalized = cleaned;
+
+  if (lastComma !== -1 && lastDot !== -1) {
+    const decimalSeparator = lastComma > lastDot ? "," : ".";
+    const groupingSeparator = decimalSeparator === "," ? "." : ",";
+    normalized = cleaned.split(groupingSeparator).join("").replace(decimalSeparator, ".");
+  } else if (lastComma !== -1) {
+    normalized = normalizeSingleSeparatorNumber(cleaned, ",");
+  } else if (lastDot !== -1) {
+    normalized = normalizeSingleSeparatorNumber(cleaned, ".");
+  }
+
   const parsed = Number.parseFloat(normalized);
   return Number.isFinite(parsed) ? parsed : Number.NaN;
 }
@@ -466,6 +490,20 @@ function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
 
+function normalizeSingleSeparatorNumber(value, separator) {
+  const parts = value.split(separator);
+
+  if (parts.length === 1) {
+    return value;
+  }
+
+  const fraction = parts[parts.length - 1];
+  const whole = parts.slice(0, -1).join("");
+  const looksLikeGrouping = fraction.length === 3 && whole.length > 0;
+
+  return looksLikeGrouping ? `${whole}${fraction}` : `${whole}.${fraction}`;
+}
+
 function formatEur(value) {
   return eurFormatter.format(Number.isFinite(value) ? value : 0);
 }
@@ -476,6 +514,22 @@ function formatGbp(value) {
 
 function formatPct(value) {
   return `${Number(value).toFixed(value % 1 === 0 ? 0 : 1)}%`;
+}
+
+function formatApiDate(value) {
+  if (typeof value !== "string") {
+    return "the latest saved rate";
+  }
+
+  const dateMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+
+  if (dateMatch) {
+    const [, year, month, day] = dateMatch;
+    return dateFormatter.format(new Date(Number(year), Number(month) - 1, Number(day)));
+  }
+
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? value : dateFormatter.format(parsed);
 }
 
 function getErrorMessage(error) {
@@ -508,9 +562,37 @@ function registerServiceWorker() {
     return;
   }
 
+  if (isLocalDevelopmentHost()) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.getRegistrations().then((registrations) => {
+        registrations.forEach((registration) => registration.unregister());
+      }).catch(() => {
+        // Ignore local cleanup failures.
+      });
+
+      if ("caches" in window) {
+        caches.keys().then((keys) =>
+          Promise.all(
+            keys
+              .filter((key) => key.startsWith("dlp-cost-estimator-"))
+              .map((key) => caches.delete(key)),
+          ),
+        ).catch(() => {
+          // Ignore local cache cleanup failures.
+        });
+      }
+    });
+    return;
+  }
+
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("./sw.js").catch(() => {
       // Service worker registration is a progressive enhancement.
     });
   });
+}
+
+function isLocalDevelopmentHost() {
+  const { hostname } = window.location;
+  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]";
 }
